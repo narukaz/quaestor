@@ -1,1 +1,1 @@
-Quaestor : Your personal expence tracker
+Quaestor : Your personal expence tracker (backend)
