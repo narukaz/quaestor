@@ -1,38 +1,19 @@
 const express = require('express');
 const router = express.Router();
-const User = require('../models/User');
 const Expense = require('../models/Expense');
+const { authMiddleware } = require('../middleware/auth');
 
-// Helper to authenticate caller via x-user-id header
-const getAuthenticatedUser = async (req, res) => {
-  const userId = req.headers['x-user-id'];
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized. Please provide a valid 'x-user-id' in request headers." });
-    return null;
-  }
-  try {
-    const user = await User.findById(userId);
-    if (!user) {
-      res.status(404).json({ error: "Authenticated user not found." });
-      return null;
-    }
-    return user;
-  } catch (error) {
-    res.status(400).json({ error: "Invalid 'x-user-id' format." });
-    return null;
-  }
-};
+// All routes require auth
+router.use(authMiddleware);
 
 // POST /api/expenses - Add expense (personal or shared)
 router.post('/', async (req, res) => {
-  const user = await getAuthenticatedUser(req, res);
-  if (!user) return;
-
   try {
+    const user = req.user;
     const { description, amount, category, type } = req.body;
 
     if (!description || amount === undefined || !category) {
-      return res.status(400).json({ error: "description, amount, and category are required." });
+      return res.status(400).json({ error: 'description, amount, and category are required.' });
     }
 
     const expenseType = type || 'personal';
@@ -40,7 +21,7 @@ router.post('/', async (req, res) => {
     let familyId = undefined;
     if (expenseType === 'shared') {
       if (!user.familyId) {
-        return res.status(400).json({ error: "You must belong to a family group to add a shared expense." });
+        return res.status(400).json({ error: 'You must belong to a family group to add a shared expense.' });
       }
       familyId = user.familyId;
     }
@@ -55,18 +36,16 @@ router.post('/', async (req, res) => {
     });
 
     await newExpense.save();
-    res.status(201).json({ message: "Expense added successfully", expense: newExpense });
+    res.status(201).json({ message: 'Expense added successfully', expense: newExpense });
   } catch (error) {
-    res.status(500).json({ error: "Error adding expense.", details: error.message });
+    res.status(500).json({ error: 'Error adding expense.', details: error.message });
   }
 });
 
 // GET /api/expenses - List expenses (supports optional type filter: personal/shared)
 router.get('/', async (req, res) => {
-  const user = await getAuthenticatedUser(req, res);
-  if (!user) return;
-
   try {
+    const user = req.user;
     const { type } = req.query;
 
     let query = {};
@@ -74,11 +53,10 @@ router.get('/', async (req, res) => {
       query = { userId: user._id, type: 'personal' };
     } else if (type === 'shared') {
       if (!user.familyId) {
-        return res.json({ message: "You are not part of a family group.", expenses: [] });
+        return res.json({ message: 'You are not part of a family group.', expenses: [] });
       }
       query = { familyId: user.familyId, type: 'shared' };
     } else {
-      // Return personal expenses OR shared family expenses
       const orConditions = [{ userId: user._id, type: 'personal' }];
       if (user.familyId) {
         orConditions.push({ familyId: user.familyId, type: 'shared' });
@@ -87,24 +65,21 @@ router.get('/', async (req, res) => {
     }
 
     const expenses = await Expense.find(query).sort({ date: -1 });
-    res.json({ message: "Expenses fetched successfully", expenses });
+    res.json({ message: 'Expenses fetched successfully', expenses });
   } catch (error) {
-    res.status(500).json({ error: "Error fetching expenses.", details: error.message });
+    res.status(500).json({ error: 'Error fetching expenses.', details: error.message });
   }
 });
 
 // GET /api/expenses/search - Search expenses
 router.get('/search', async (req, res) => {
-  const user = await getAuthenticatedUser(req, res);
-  if (!user) return;
-
   try {
+    const user = req.user;
     const searchString = req.query.q || req.query.query || '';
     if (!searchString) {
       return res.status(400).json({ error: "Search query 'q' or 'query' parameter is required." });
     }
 
-    // Filter to ensure search returns only accessible expenses
     const accessFilter = [{ userId: user._id, type: 'personal' }];
     if (user.familyId) {
       accessFilter.push({ familyId: user.familyId, type: 'shared' });
@@ -114,42 +89,34 @@ router.get('/search', async (req, res) => {
     const query = {
       $and: [
         { $or: accessFilter },
-        {
-          $or: [
-            { description: searchRegex },
-            { category: searchRegex }
-          ]
-        }
+        { $or: [{ description: searchRegex }, { category: searchRegex }] }
       ]
     };
 
     const results = await Expense.find(query).sort({ date: -1 });
-    res.json({ message: `Search results fetched successfully for query: ${searchString}`, results });
+    res.json({ message: `Search results for: ${searchString}`, results });
   } catch (error) {
-    res.status(500).json({ error: "Error searching expenses.", details: error.message });
+    res.status(500).json({ error: 'Error searching expenses.', details: error.message });
   }
 });
 
 // PUT /api/expenses/:id - Update an expense
 router.put('/:id', async (req, res) => {
-  const user = await getAuthenticatedUser(req, res);
-  if (!user) return;
-
   try {
+    const user = req.user;
     const { id } = req.params;
     const expense = await Expense.findById(id);
 
     if (!expense) {
-      return res.status(404).json({ error: "Expense not found." });
+      return res.status(404).json({ error: 'Expense not found.' });
     }
 
-    // Authorization: User can update if it is their personal expense,
-    // or if it's shared and they are in the family group that owns it.
     const isOwner = expense.userId.toString() === user._id.toString();
-    const isInFamily = expense.familyId && user.familyId && expense.familyId.toString() === user.familyId.toString();
+    const isInFamily = expense.familyId && user.familyId &&
+      expense.familyId.toString() === user.familyId.toString();
 
     if (!isOwner && !isInFamily) {
-      return res.status(403).json({ error: "Forbidden. You do not have permission to update this expense." });
+      return res.status(403).json({ error: 'Forbidden. You do not have permission to update this expense.' });
     }
 
     const { description, amount, category, type } = req.body;
@@ -159,7 +126,7 @@ router.put('/:id', async (req, res) => {
     if (type !== undefined) {
       if (type === 'shared') {
         if (!user.familyId) {
-          return res.status(400).json({ error: "Cannot convert to shared expense without a family group." });
+          return res.status(400).json({ error: 'Cannot convert to shared expense without a family group.' });
         }
         expense.familyId = user.familyId;
         expense.type = 'shared';
@@ -170,36 +137,35 @@ router.put('/:id', async (req, res) => {
     }
 
     await expense.save();
-    res.json({ message: "Expense updated successfully", expense });
+    res.json({ message: 'Expense updated successfully', expense });
   } catch (error) {
-    res.status(500).json({ error: "Error updating expense.", details: error.message });
+    res.status(500).json({ error: 'Error updating expense.', details: error.message });
   }
 });
 
 // DELETE /api/expenses/:id - Delete an expense
 router.delete('/:id', async (req, res) => {
-  const user = await getAuthenticatedUser(req, res);
-  if (!user) return;
-
   try {
+    const user = req.user;
     const { id } = req.params;
     const expense = await Expense.findById(id);
 
     if (!expense) {
-      return res.status(404).json({ error: "Expense not found." });
+      return res.status(404).json({ error: 'Expense not found.' });
     }
 
     const isOwner = expense.userId.toString() === user._id.toString();
-    const isInFamily = expense.familyId && user.familyId && expense.familyId.toString() === user.familyId.toString();
+    const isInFamily = expense.familyId && user.familyId &&
+      expense.familyId.toString() === user.familyId.toString();
 
     if (!isOwner && !isInFamily) {
-      return res.status(403).json({ error: "Forbidden. You do not have permission to delete this expense." });
+      return res.status(403).json({ error: 'Forbidden. You do not have permission to delete this expense.' });
     }
 
     await Expense.findByIdAndDelete(id);
-    res.json({ message: `Expense ${id} deleted successfully` });
+    res.json({ message: `Expense deleted successfully.` });
   } catch (error) {
-    res.status(500).json({ error: "Error deleting expense.", details: error.message });
+    res.status(500).json({ error: 'Error deleting expense.', details: error.message });
   }
 });
 

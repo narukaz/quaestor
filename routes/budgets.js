@@ -1,135 +1,130 @@
 const express = require('express');
 const router = express.Router();
-const User = require('../models/User');
 const Budget = require('../models/Budget');
-const Expense = require('../models/Expense');
+const { authMiddleware } = require('../middleware/auth');
 
-// Helper to authenticate caller via x-user-id header
-const getAuthenticatedUser = async (req, res) => {
-  const userId = req.headers['x-user-id'];
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized. Please provide a valid 'x-user-id' in request headers." });
-    return null;
-  }
+router.use(authMiddleware);
+
+// Helper: is a budget still editable (same month+year as now)?
+function isEditable(budget) {
+  const now = new Date();
+  return budget.month === now.getMonth() + 1 && budget.year === now.getFullYear();
+}
+
+// GET /api/budgets — get current month's budget(s) for the user
+router.get('/', async (req, res) => {
   try {
-    const user = await User.findById(userId);
-    if (!user) {
-      res.status(404).json({ error: "Authenticated user not found." });
-      return null;
-    }
-    return user;
-  } catch (error) {
-    res.status(400).json({ error: "Invalid 'x-user-id' format." });
-    return null;
-  }
-};
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
 
-// POST /api/budgets - Set or update budget limit (personal or shared)
-router.post('/', async (req, res) => {
-  const user = await getAuthenticatedUser(req, res);
-  if (!user) return;
+    const budgets = await Budget.find({
+      $or: [
+        { userId: req.user._id },
+        ...(req.user.familyId ? [{ familyId: req.user.familyId }] : [])
+      ],
+      month,
+      year
+    });
 
-  try {
-    const { limit, type, category } = req.body;
-
-    if (limit === undefined || limit < 0) {
-      return res.status(400).json({ error: "A positive limit is required." });
-    }
-
-    const budgetType = type || 'personal';
-    let familyId = undefined;
-
-    if (budgetType === 'shared') {
-      if (!user.familyId) {
-        return res.status(400).json({ error: "You must belong to a family group to set a shared budget." });
-      }
-      familyId = user.familyId;
-    }
-
-    // Try to find existing budget of this type/category
-    let query = { type: budgetType };
-    if (budgetType === 'personal') {
-      query.userId = user._id;
-    } else {
-      query.familyId = user.familyId;
-    }
-    if (category) {
-      query.category = category;
-    } else {
-      // Find one without a specific category
-      query.category = { $exists: false };
-    }
-
-    let budget = await Budget.findOne(query);
-
-    if (budget) {
-      // Update existing limit
-      budget.limit = limit;
-      await budget.save();
-    } else {
-      // Create new budget
-      budget = new Budget({
-        type: budgetType,
-        limit,
-        userId: budgetType === 'personal' ? user._id : undefined,
-        familyId: budgetType === 'shared' ? user.familyId : undefined,
-        category
-      });
-      await budget.save();
-    }
-
-    res.json({ message: "Budget limit configured successfully", budget });
-  } catch (error) {
-    res.status(500).json({ error: "Error setting budget limit.", details: error.message });
+    res.json({
+      budgets: budgets.map(b => ({
+        ...b.toObject(),
+        editable: isEditable(b)
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// GET /api/budgets/tracking - Fetch budget status, tracking, and remaining balance
-router.get('/tracking', async (req, res) => {
-  const user = await getAuthenticatedUser(req, res);
-  if (!user) return;
-
+// GET /api/budgets/all — get all budgets (history)
+router.get('/all', async (req, res) => {
   try {
-    // 1. Calculate Personal Spending
-    const personalExpenses = await Expense.find({ userId: user._id, type: 'personal' });
-    const personalSpent = personalExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-
-    const personalBudget = await Budget.findOne({ userId: user._id, type: 'personal', category: { $exists: false } });
-    const personalLimit = personalBudget ? personalBudget.limit : 0;
-
-    const personalTracking = {
-      limit: personalLimit,
-      spent: personalSpent,
-      remaining: personalLimit ? Math.max(0, personalLimit - personalSpent) : 0,
-      overLimit: personalLimit ? personalSpent > personalLimit : false
-    };
-
-    // 2. Calculate Shared Spending
-    let sharedTracking = null;
-    if (user.familyId) {
-      const sharedExpenses = await Expense.find({ familyId: user.familyId, type: 'shared' });
-      const sharedSpent = sharedExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-
-      const sharedBudget = await Budget.findOne({ familyId: user.familyId, type: 'shared', category: { $exists: false } });
-      const sharedLimit = sharedBudget ? sharedBudget.limit : 0;
-
-      sharedTracking = {
-        limit: sharedLimit,
-        spent: sharedSpent,
-        remaining: sharedLimit ? Math.max(0, sharedLimit - sharedSpent) : 0,
-        overLimit: sharedLimit ? sharedSpent > sharedLimit : false
-      };
-    }
+    const budgets = await Budget.find({
+      $or: [
+        { userId: req.user._id },
+        ...(req.user.familyId ? [{ familyId: req.user.familyId }] : [])
+      ]
+    }).sort({ year: -1, month: -1 });
 
     res.json({
-      message: "Budget tracking status fetched successfully",
-      tracking: {
-        personal: personalTracking,
-        shared: sharedTracking
-      }
+      budgets: budgets.map(b => ({
+        ...b.toObject(),
+        editable: isEditable(b)
+      }))
     });
-  } catch (error) {
-    res.status(500).json({ error: "Error tracking budgets.", details: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/budgets — set/update budget for current month
+router.post('/', async (req, res) => {
+  try {
+    const { limit, type = 'personal', category } = req.body;
+    if (!limit || isNaN(Number(limit)) || Number(limit) <= 0) {
+      return res.status(400).json({ error: 'A valid positive budget limit is required.' });
+    }
+
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+
+    // Look for existing budget this month
+    const query = {
+      type,
+      month,
+      year,
+      ...(category ? { category } : {}),
+      ...(type === 'shared' ? { familyId: req.user.familyId } : { userId: req.user._id })
+    };
+
+    let budget = await Budget.findOne(query);
+    if (budget) {
+      // Can only edit if same month+year (i.e., current month)
+      if (!isEditable(budget)) {
+        return res.status(403).json({ error: 'Budget for a past month cannot be changed.' });
+      }
+      budget.limit = Number(limit);
+      await budget.save();
+      return res.json({ budget: { ...budget.toObject(), editable: true }, updated: true });
+    }
+
+    // Create new budget for this month
+    budget = new Budget({
+      limit: Number(limit),
+      type,
+      month,
+      year,
+      category: category || undefined,
+      ...(type === 'shared' ? { familyId: req.user.familyId } : { userId: req.user._id })
+    });
+    await budget.save();
+
+    res.status(201).json({ budget: { ...budget.toObject(), editable: true }, created: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/budgets/:id — edit existing budget (only if still current month)
+router.patch('/:id', async (req, res) => {
+  try {
+    const budget = await Budget.findById(req.params.id);
+    if (!budget) return res.status(404).json({ error: 'Budget not found.' });
+
+    if (!isEditable(budget)) {
+      return res.status(403).json({ error: 'Budget for a past month cannot be changed.' });
+    }
+
+    const { limit } = req.body;
+    if (limit !== undefined) budget.limit = Number(limit);
+    await budget.save();
+
+    res.json({ budget: { ...budget.toObject(), editable: true } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
