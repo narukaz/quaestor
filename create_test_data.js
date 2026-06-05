@@ -14,7 +14,7 @@ async function main() {
   console.log('Connected.');
 
   // Emails of test users
-  const emails = ['john@quaestor.app', 'mary@quaestor.app', 'david@quaestor.app'];
+  const emails = ['one@gmail.com', 'two@gmail.com', 'three@gmail.com'];
 
   // Delete existing data to start clean
   console.log('Cleaning up existing test data...');
@@ -27,109 +27,109 @@ async function main() {
   await User.deleteMany({ email: { $in: emails } });
 
   console.log('Creating test users...');
-  const passwordHash = await bcrypt.hash('password123', 12);
+  const passwordHash = await bcrypt.hash('password', 12);
 
-  const john = new User({
-    name: 'John Doe',
-    username: 'johndoe',
-    email: 'john@quaestor.app',
+  const user1 = new User({
+    name: 'one',
+    username: 'one',
+    email: 'one@gmail.com',
     password: passwordHash
   });
 
-  const mary = new User({
-    name: 'Mary Smith',
-    username: 'marysmith',
-    email: 'mary@quaestor.app',
+  const user2 = new User({
+    name: 'two',
+    username: 'two',
+    email: 'two@gmail.com',
     password: passwordHash
   });
 
-  const david = new User({
-    name: 'David Jones',
-    username: 'davidjones',
-    email: 'david@quaestor.app',
+  const user3 = new User({
+    name: 'three',
+    username: 'three',
+    email: 'three@gmail.com',
     password: passwordHash
   });
 
-  await john.save();
-  await mary.save();
-  await david.save();
+  await user1.save();
+  await user2.save();
+  await user3.save();
 
   console.log('Creating family...');
   const family = new Family({
-    name: 'Doe & Friends Family',
-    createdBy: john._id,
-    members: [john._id, mary._id, david._id],
+    name: 'Test Family Group',
+    createdBy: user1._id,
+    members: [user1._id, user2._id, user3._id],
     pendingInvites: [
-      { userId: mary._id, invitedBy: john._id, status: 'accepted' },
-      { userId: david._id, invitedBy: john._id, status: 'accepted' }
+      { userId: user2._id, invitedBy: user1._id, status: 'accepted' },
+      { userId: user3._id, invitedBy: user1._id, status: 'accepted' }
     ]
   });
   await family.save();
 
   // Update users familyId
-  john.familyId = family._id;
-  mary.familyId = family._id;
-  david.familyId = family._id;
+  user1.familyId = family._id;
+  user2.familyId = family._id;
+  user3.familyId = family._id;
 
-  await john.save();
-  await mary.save();
-  await david.save();
+  await user1.save();
+  await user2.save();
+  await user3.save();
 
   console.log('Creating transactions...');
   const expenses = [
-    // John's expenses
+    // User 1's expenses
     new Expense({
-      description: 'Coffee & Donut',
-      amount: 6.50,
+      description: 'Lunch Outing',
+      amount: 12.50,
       category: 'Food',
       type: 'personal',
-      userId: john._id,
-      date: new Date(Date.now() - 3600000 * 2) // 2 hours ago
+      userId: user1._id,
+      date: new Date(Date.now() - 3600000 * 3) // 3 hours ago
     }),
     new Expense({
-      description: 'Weekly Groceries',
-      amount: 84.20,
-      category: 'Food',
+      description: 'Electricity Bill',
+      amount: 90.00,
+      category: 'Utilities',
       type: 'shared',
-      userId: john._id,
+      userId: user1._id,
       familyId: family._id,
       date: new Date(Date.now() - 3600000 * 24) // 1 day ago
     }),
     
-    // Mary's expenses
+    // User 2's expenses
     new Expense({
-      description: 'Book purchase',
-      amount: 14.99,
+      description: 'Book Store',
+      amount: 18.00,
       category: 'Entertainment',
       type: 'personal',
-      userId: mary._id,
-      date: new Date(Date.now() - 3600000 * 5) // 5 hours ago
+      userId: user2._id,
+      date: new Date(Date.now() - 3600000 * 6) // 6 hours ago
     }),
     new Expense({
-      description: 'Netflix subscription',
-      amount: 19.99,
-      category: 'Entertainment',
+      description: 'Weekly Groceries',
+      amount: 65.00,
+      category: 'Food',
       type: 'shared',
-      userId: mary._id,
+      userId: user2._id,
       familyId: family._id,
       date: new Date(Date.now() - 3600000 * 48) // 2 days ago
     }),
 
-    // David's expenses
+    // User 3's expenses
     new Expense({
-      description: 'Gym Membership',
-      amount: 45.00,
-      category: 'Health',
+      description: 'Morning Coffee',
+      amount: 5.00,
+      category: 'Food',
       type: 'personal',
-      userId: david._id,
+      userId: user3._id,
       date: new Date(Date.now() - 3600000 * 12) // 12 hours ago
     }),
     new Expense({
-      description: 'Electricity Bill',
-      amount: 120.50,
+      description: 'Shared Wi-Fi Plan',
+      amount: 45.00,
       category: 'Utilities',
       type: 'shared',
-      userId: david._id,
+      userId: user3._id,
       familyId: family._id,
       date: new Date(Date.now() - 3600000 * 72) // 3 days ago
     })
@@ -141,16 +141,16 @@ async function main() {
 
   console.log('Creating notifications for family actions...');
   await Notification.create({
-    userId: john._id,
+    userId: user1._id,
     type: 'family_accepted',
-    message: 'Mary Smith accepted your invitation and joined the "Doe & Friends Family" family!',
+    message: 'two accepted your invitation and joined the "Test Family Group"!',
     relatedId: family._id,
     read: true
   });
   await Notification.create({
-    userId: john._id,
+    userId: user1._id,
     type: 'family_accepted',
-    message: 'David Jones accepted your invitation and joined the "Doe & Friends Family" family!',
+    message: 'three accepted your invitation and joined the "Test Family Group"!',
     relatedId: family._id,
     read: true
   });

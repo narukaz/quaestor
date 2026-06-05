@@ -14,26 +14,19 @@ i would love to add more feature:
 -> want to include more groups than only restricted to Personal and family.
 
 
-### 1. Main Demo Account
-- **Name**: Omveer Singh
-- **Email**: `omveer@quaestor.app`
-- **Username**: `omveer99`
-- **Password**: `omveer123`
 
-### 2. Seeded Family Group Members (Test Suite)
-All three users below are part of the **"Test Family Group"** and have active personal and shared transactions loaded.
 - **User 1 (Admin/Creator)**:
-  - **Name**: User One
-  - **Email**: `user1@test.com`
-  - **Username**: `user1`
-  - **Password**: `userpass`
+  - **Name**: one
+  - **Email**: `one@gmail.com`
+  - **Username**: `one`
+  - **Password**: `password`
 - **User 2**:
-  - **Name**: User Two
-  - **Email**: `user2@test.com`
-  - **Username**: `user2`
-  - **Password**: `userpass`
+  - **Name**: two
+  - **Email**: `two@gmail.com`
+  - **Username**: `two`
+  - **Password**: `password`
 - **User 3**:
-  - **Name**: User Three
-  - **Email**: `user3@test.com`
-  - **Username**: `user3`
-  - **Password**: `userpass`
+  - **Name**: three
+  - **Email**: `three@gmail.com`
+  - **Username**: `three`
+  - **Password**: `password`
