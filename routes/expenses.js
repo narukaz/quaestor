@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Expense = require('../models/Expense');
+const Family = require('../models/Family');
 const { authMiddleware } = require('../middleware/auth');
 
 // All routes require auth
@@ -21,6 +22,12 @@ router.post('/', async (req, res) => {
     let familyId = undefined;
     if (expenseType === 'shared') {
       if (!user.familyId) {
+        return res.status(400).json({ error: 'You must belong to a family group to add a shared expense.' });
+      }
+      const familyExists = await Family.exists({ _id: user.familyId });
+      if (!familyExists) {
+        user.familyId = undefined;
+        await user.save();
         return res.status(400).json({ error: 'You must belong to a family group to add a shared expense.' });
       }
       familyId = user.familyId;
@@ -55,11 +62,23 @@ router.get('/', async (req, res) => {
       if (!user.familyId) {
         return res.json({ message: 'You are not part of a family group.', expenses: [] });
       }
+      const familyExists = await Family.exists({ _id: user.familyId });
+      if (!familyExists) {
+        user.familyId = undefined;
+        await user.save();
+        return res.json({ message: 'You are not part of a family group.', expenses: [] });
+      }
       query = { familyId: user.familyId, type: 'shared' };
     } else {
       const orConditions = [{ userId: user._id, type: 'personal' }];
       if (user.familyId) {
-        orConditions.push({ familyId: user.familyId, type: 'shared' });
+        const familyExists = await Family.exists({ _id: user.familyId });
+        if (!familyExists) {
+          user.familyId = undefined;
+          await user.save();
+        } else {
+          orConditions.push({ familyId: user.familyId, type: 'shared' });
+        }
       }
       query = { $or: orConditions };
     }

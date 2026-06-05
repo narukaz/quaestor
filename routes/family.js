@@ -23,7 +23,9 @@ router.get('/', async (req, res) => {
       .populate('pendingInvites.invitedBy', 'name username');
 
     if (!family) {
-      return res.status(404).json({ error: 'Family group not found.' });
+      user.familyId = undefined;
+      await user.save();
+      return res.json({ message: 'You are not part of any family group yet.', family: null });
     }
 
     res.json({ message: 'Family details fetched successfully', family });
