@@ -17,9 +17,9 @@ mongoose.connect(mongoURI)
     console.error(`Error details: ${err.message}`);
   });
 
-// CORS — allow Vite dev server
+// CORS — allow Vite dev server and production deployments with credentials
 app.use(cors({
-  origin: '*',
+  origin: true, // Dynamically reflects request origin to allow credentials
   credentials: true
 }));
 
