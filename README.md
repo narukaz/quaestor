@@ -1,38 +1,18 @@
-# Quaestor: Your Personal Expense Tracker (Backend)
+Quaestor : Your personal expence tracker (backend)
 
-## How to Run the Project Locally
+in order to run project on your local 
 
-1. **Install dependencies**:
-   Run `npm install` (or `npm i`) to install all the required packages from `package.json`.
-   ```bash
-   npm install
-   ```
+1 -> npm i (install all the dependencies from json)
+2-> deploy a local instance of mongo compass or pass MONGODB_URI in .env to communicate.
+3-> then run "node index.js"
+if any change made after step 3 , kill the server and run again.
 
-2. **Configure Database**:
-   Deploy a local instance of MongoDB, or create a `.env` file in the root directory and pass your custom `MONGODB_URI` connection string:
-   ```env
-   MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/quaestor
-   ```
+what i would like to improve.
+i would love to add more feature:
+-> API to connect with apps that i use daily such as GooglePay, BHIM, Paytm.
+-> Email delivery of reports
+-> want to include more groups than only restricted to Personal and family.
 
-3. **Start the server**:
-   Run the following command to start the server:
-   ```bash
-   node index.js
-   ```
-   *Note: If you make any code changes after starting the server, you will need to kill the process and restart it.*
-
-## Future Improvements & Features
-
-We plan to add the following features in future updates:
-- **Payment App Integrations**: APIs to connect with daily-use apps like Google Pay, BHIM, and Paytm.
-- **Email Reports**: Automated email delivery of financial summaries and reports.
-- **Custom Groups**: Support for creating more budget groups beyond just "Personal" and "Family".
-
----
-
-## Test Account Credentials
-
-The database has been seeded with the following test accounts:
 
 ### 1. Main Demo Account
 - **Name**: Omveer Singh
