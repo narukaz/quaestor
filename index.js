@@ -14,7 +14,7 @@ mongoose.connect(mongoURI)
 
 // CORS — allow Vite dev server
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:4173', 'http://localhost:5174'],
+  origin: ['https://quaestor-face.vercel.app/'],
   credentials: true
 }));
 
