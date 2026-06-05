@@ -5,11 +5,15 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Connect to MongoDB
-const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/quaestor';
+const mongoURI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/quaestor';
+console.log(`Connecting to MongoDB using URI: ${mongoURI}`);
 mongoose.connect(mongoURI)
-  .then(() => console.log('Connected to MongoDB at', mongoURI))
+  .then(() => {
+    console.log(`[SUCCESS] Connected to MongoDB at: ${mongoURI}`);
+  })
   .catch(err => {
-    console.error('MongoDB connection error:', err.message);
+    console.error(`[FAILURE] MongoDB connection failed for: ${mongoURI}`);
+    console.error(`Error details: ${err.message}`);
   });
 
 // CORS — allow Vite dev server
