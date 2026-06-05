@@ -46,6 +46,42 @@ app.get('/health', (req, res) => {
   res.send('Healthy');
 });
 
+app.get('/dbhealth', async (req, res) => {
+  try {
+    const readyState = mongoose.connection.readyState;
+    const states = {
+      0: 'Disconnected',
+      1: 'Connected',
+      2: 'Connecting',
+      3: 'Disconnecting'
+    };
+
+    if (readyState !== 1) {
+      return res.status(500).json({
+        status: 'error',
+        database: states[readyState] || 'Unknown',
+        message: 'Database is not connected.'
+      });
+    }
+
+    // Ping the admin DB to verify active communication
+    await mongoose.connection.db.admin().ping();
+
+    res.json({
+      status: 'ok',
+      database: 'Connected',
+      message: 'Database is up and running.'
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      database: 'Error',
+      message: 'Failed to communicate with database.',
+      details: error.message
+    });
+  }
+});
+
 module.exports = app;
 
 if (require.main === module) {
