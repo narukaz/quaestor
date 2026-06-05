@@ -20,20 +20,20 @@ i would love to add more feature:
 - **Username**: `omveer99`
 - **Password**: `omveer123`
 
-### 2. Seeded Family Group Members
-All three users below are part of the **"Doe & Friends Family"** group and have active transactions loaded.
+### 2. Seeded Family Group Members (Test Suite)
+All three users below are part of the **"Test Family Group"** and have active personal and shared transactions loaded.
 - **User 1 (Admin/Creator)**:
-  - **Name**: John Doe
-  - **Email**: `john@quaestor.app`
-  - **Username**: `johndoe`
-  - **Password**: `password123`
+  - **Name**: User One
+  - **Email**: `user1@test.com`
+  - **Username**: `user1`
+  - **Password**: `userpass`
 - **User 2**:
-  - **Name**: Mary Smith
-  - **Email**: `mary@quaestor.app`
-  - **Username**: `marysmith`
-  - **Password**: `password123`
+  - **Name**: User Two
+  - **Email**: `user2@test.com`
+  - **Username**: `user2`
+  - **Password**: `userpass`
 - **User 3**:
-  - **Name**: David Jones
-  - **Email**: `david@quaestor.app`
-  - **Username**: `davidjones`
-  - **Password**: `password123`
+  - **Name**: User Three
+  - **Email**: `user3@test.com`
+  - **Username**: `user3`
+  - **Password**: `userpass`
